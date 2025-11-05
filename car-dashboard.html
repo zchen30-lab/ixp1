@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Car Dashboard Experience</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            background: #000;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Windshield Layer - 48% */
+        #windshield-layer {
+            position: relative;
+            height: 48vh;
+            background: #9AD0F5;
+            overflow: hidden;
+        }
+
+        #windshield {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: default;
+        }
+
+        #windshield.clickable {
+            cursor: pointer;
+        }
+
+        /* Windshield frame (car interior border) */
+        .windshield-frame {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            border: 30px solid rgba(40, 40, 40, 0.7);
+            border-bottom: 10px solid rgba(40, 40, 40, 0.9);
+        }
+
+        /* Dashboard Layer - 37% */
+        #dashboard-layer {
+            height: 37vh;
+            background: linear-gradient(to bottom, #1a1a1a 0%, #2a2a2a 100%);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Dashboard elements container */
+        .dashboard-content {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 20px 40px;
+        }
+
+        /* Left meter (speedometer style) */
+        .meter-left {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #444 0%, #222 100%);
+            border: 5px solid #555;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .meter-left::before {
+            content: '';
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            background: #333;
+            position: absolute;
+        }
+
+        .meter-label {
+            position: absolute;
+            color: #aaa;
+            font-size: 10px;
+            text-align: center;
+            z-index: 1;
+        }
+
+        /* Right meter (tachometer style) */
+        .meter-right {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #444 0%, #222 100%);
+            border: 5px solid #555;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .meter-right::before {
+            content: '';
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            background: #333;
+            position: absolute;
+        }
+
+        /* Center digital display */
+        .center-display {
+            flex: 1;
+            height: 80px;
+            background: #000;
+            margin: 30px 40px 0 40px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .center-display::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(to right, transparent, #4A9FFF, transparent);
+        }
+
+        .display-text {
+            color: #4A9FFF;
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+
+        /* Steering wheel */
+        .steering-wheel {
+            position: absolute;
+            bottom: -60px;
+            left: 35%;
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #444 0%, #1a1a1a 100%);
+            border: 15px solid #2a2a2a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .steering-wheel::before {
+            content: '';
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #333;
+            border: 3px solid #444;
+        }
+
+        .steering-spoke {
+            position: absolute;
+            background: #2a2a2a;
+            border-radius: 5px;
+        }
+
+        .spoke-horizontal {
+            width: 140px;
+            height: 20px;
+        }
+
+        .spoke-vertical {
+            width: 20px;
+            height: 140px;
+        }
+
+        /* Text/HUD Layer - 15% */
+        #text-layer {
+            height: 15vh;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-top: 2px solid #333;
+        }
+
+        #text-display {
+            color: #9AD0F5;
+            font-size: 16px;
+            text-align: center;
+            max-width: 800px;
+            line-height: 1.6;
+        }
+
+        /* Fade transition */
+        .fade-out {
+            animation: fadeOut 0.3s ease-out;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <!-- Windshield Layer -->
+        <div id="windshield-layer">
+            <canvas id="windshield"></canvas>
+            <div class="windshield-frame"></div>
+        </div>
+
+        <!-- Dashboard Layer -->
+        <div id="dashboard-layer">
+            <div class="dashboard-content">
+                <div class="meter-left">
+                    <span class="meter-label" style="top: 50%; color: #9AD0F5;">0</span>
+                </div>
+
+                <div class="center-display">
+                    <span class="display-text">DRIVE MODE</span>
+                </div>
+
+                <div class="meter-right">
+                    <span class="meter-label" style="top: 50%; color: #9AD0F5;">0</span>
+                </div>
+            </div>
+
+            <div class="steering-wheel">
+                <div class="steering-spoke spoke-horizontal"></div>
+                <div class="steering-spoke spoke-vertical"></div>
+            </div>
+        </div>
+
+        <!-- Text/HUD Layer -->
+        <div id="text-layer">
+            <div id="text-display">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('windshield');
+        const ctx = canvas.getContext('2d');
+        const textDisplay = document.getElementById('text-display');
+
+        // Set canvas size to match container
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            render();
+        });
+
+        // State management
+        let scene = 'fork';
+        let isHolding = false;
+        let holdStartTime = 0;
+        let animationProgress = 0;
+        let animationFrameId = null;
+
+        // Text messages
+        const messages = {
+            fork: "You are at a fork in the road. Click on the left or right side of the windshield to choose your way.",
+            highway_intro: "You take the highway. Press and hold the mouse on the windshield to accelerate.",
+            highway_short: "You ease off the gas. Hold longer if you want to see what happens.",
+            highway_police: "You're driving too fast. Please choose again.",
+            forest_intro: "You turn into the forest road. Press and hold the mouse on the windshield to keep driving.",
+            forest_short: "You slow down and the forest grows quiet. Hold longer to see where this road leads.",
+            forest_home: "Congratulations, you're home!"
+        };
+
+        // Scene transition with fade effect
+        function goToScene(newScene) {
+            canvas.classList.add('fade-out');
+
+            setTimeout(() => {
+                scene = newScene;
+                isHolding = false;
+                holdStartTime = 0;
+                animationProgress = 0;
+
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+
+                // Update cursor style
+                if (scene === 'fork') {
+                    canvas.classList.add('clickable');
+                } else if (scene === 'highway_intro' || scene === 'forest_intro') {
+                    canvas.classList.add('clickable');
+                } else {
+                    canvas.classList.remove('clickable');
+                }
+
+                canvas.classList.remove('fade-out');
+                canvas.classList.add('fade-in');
+
+                render();
+                updateText();
+
+                setTimeout(() => {
+                    canvas.classList.remove('fade-in');
+                }, 300);
+            }, 300);
+        }
+
+        // Update text display
+        function updateText() {
+            let message = messages[scene] || "";
+
+            if (scene === 'highway_hold' || scene === 'forest_hold') {
+                if (scene === 'highway_hold') {
+                    message = messages.highway_intro;
+                } else {
+                    message = messages.forest_intro;
+                }
+            }
+
+            textDisplay.textContent = message;
+        }
+
+        // Draw fork scene
+        function drawFork() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Sky
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, h);
+            skyGradient.addColorStop(0, '#9AD0F5');
+            skyGradient.addColorStop(1, '#E8F5FF');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, w, h);
+
+            // Ground
+            ctx.fillStyle = '#5BA862';
+            ctx.fillRect(0, h * 0.6, w, h * 0.4);
+
+            // Main road
+            ctx.fillStyle = '#888888';
+            ctx.beginPath();
+            ctx.moveTo(w * 0.4, h);
+            ctx.lineTo(w * 0.45, h * 0.4);
+            ctx.lineTo(w * 0.55, h * 0.4);
+            ctx.lineTo(w * 0.6, h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Left road (highway)
+            ctx.fillStyle = '#999999';
+            ctx.beginPath();
+            ctx.moveTo(w * 0.45, h * 0.4);
+            ctx.lineTo(w * 0.1, 0);
+            ctx.lineTo(w * 0.3, 0);
+            ctx.lineTo(w * 0.5, h * 0.4);
+            ctx.closePath();
+            ctx.fill();
+
+            // Right road (forest)
+            ctx.fillStyle = '#777777';
+            ctx.beginPath();
+            ctx.moveTo(w * 0.55, h * 0.4);
+            ctx.lineTo(w * 0.7, 0);
+            ctx.lineTo(w * 0.9, 0);
+            ctx.lineTo(w * 0.6, h * 0.4);
+            ctx.closePath();
+            ctx.fill();
+
+            // Trees on left side - positioned on grass (ground starts at h * 0.6)
+            for (let i = 0; i < 5; i++) {
+                const size = 40 - i * 5;
+                // Tree bottom should touch grass: y + size * 0.5 = h * 0.6
+                const y = h * 0.6 - size * 0.5;
+                drawTree(w * 0.05 + i * w * 0.08, y, size);
+            }
+
+            // Trees on right side - positioned on grass
+            for (let i = 0; i < 6; i++) {
+                const size = 40 - i * 5;
+                const y = h * 0.6 - size * 0.5;
+                drawTree(w * 0.92 - i * w * 0.08, y, size);
+            }
+
+            // Road divider lines
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.moveTo(w * 0.5, h);
+            ctx.lineTo(w * 0.5, h * 0.4);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Draw highway scene
+        function drawHighway(progress = 0) {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Sky
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, w, h);
+
+            // Ground
+            ctx.fillStyle = '#7D9F7F';
+            ctx.fillRect(0, h * 0.55, w, h * 0.45);
+
+            // Highway lanes with speed effect
+            const speedOffset = progress * 5;
+            const laneStretch = 1 + progress * 0.5;
+
+            ctx.fillStyle = '#666666';
+            ctx.fillRect(0, h * 0.55, w, h * 0.45);
+
+            // Lane dividers - animated
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([40 * laneStretch, 30]);
+
+            for (let lane = 1; lane < 4; lane++) {
+                ctx.beginPath();
+                ctx.moveTo(w * lane / 4, h);
+                ctx.lineTo(w * lane / 4, h * 0.55 + speedOffset);
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+
+            // Guardrails with motion
+            for (let i = 0; i < 10; i++) {
+                const offset = (i * 50 - speedOffset * 10) % 500;
+                const y = h * 0.6 + offset;
+                if (y > h * 0.55 && y < h) {
+                    ctx.fillStyle = '#CCCCCC';
+                    ctx.fillRect(w * 0.05, y, 30, 8);
+                    ctx.fillRect(w * 0.92, y, 30, 8);
+                }
+            }
+
+            // Motion blur effect at high speed
+            if (progress > 0.6) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${(progress - 0.6) * 0.3})`;
+                for (let i = 0; i < 20; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * w * 0.3;
+                    const x = w / 2 + Math.cos(angle) * dist;
+                    const y = h / 2 + Math.sin(angle) * dist;
+                    ctx.fillRect(x, y, Math.random() * 100 + 50, 2);
+                }
+            }
+        }
+
+        // Draw police scene
+        function drawPolice() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Draw highway base
+            drawHighway(0);
+
+            // Police car
+            const carX = w * 0.5 - 60;
+            const carY = h * 0.35;
+
+            // Car body
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(carX, carY, 120, 60);
+
+            // Car top
+            ctx.fillRect(carX + 20, carY - 30, 80, 30);
+
+            // Flashing lights
+            const flash = Math.floor(Date.now() / 300) % 2;
+            ctx.fillStyle = flash ? '#E43B3B' : '#2A66E4';
+            ctx.fillRect(carX + 30, carY - 35, 20, 5);
+            ctx.fillRect(carX + 70, carY - 35, 20, 5);
+
+            // Windows
+            ctx.fillStyle = '#4A9FFF';
+            ctx.fillRect(carX + 25, carY - 25, 30, 20);
+            ctx.fillRect(carX + 65, carY - 25, 30, 20);
+
+            // Wheels
+            ctx.fillStyle = '#222222';
+            ctx.beginPath();
+            ctx.arc(carX + 30, carY + 60, 12, 0, Math.PI * 2);
+            ctx.arc(carX + 90, carY + 60, 12, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Draw forest scene
+        function drawForest(progress = 0) {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Sky - darker
+            ctx.fillStyle = '#6B9DC7';
+            ctx.fillRect(0, 0, w, h);
+
+            // Ground
+            ctx.fillStyle = '#4A7C4E';
+            ctx.fillRect(0, h * 0.65, w, h * 0.35);
+
+            // Road
+            ctx.fillStyle = '#6B5D4F';
+            ctx.beginPath();
+            ctx.moveTo(w * 0.3, h);
+            ctx.lineTo(w * 0.42, h * 0.3);
+            ctx.lineTo(w * 0.58, h * 0.3);
+            ctx.lineTo(w * 0.7, h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Parallax trees - moving with progress
+            // Ground starts at h * 0.65
+            const treeOffset = progress * 20;
+
+            // Left side trees - positioned from horizon to grass with perspective
+            for (let i = 0; i < 8; i++) {
+                const size = 60 + i * 10;
+                const depth = i / 8; // 0 = far away, 1 = close
+                // Far trees near horizon (h * 0.35), close trees on grass (h * 0.65 - size * 0.5)
+                const farY = h * 0.35;
+                const nearY = h * 0.65 - size * 0.5;
+                const y = farY + (nearY - farY) * depth + treeOffset * (1 - depth);
+                drawTree(w * 0.15 - i * 5, y, size);
+            }
+
+            // Right side trees - positioned from horizon to grass with perspective
+            for (let i = 0; i < 8; i++) {
+                const size = 60 + i * 10;
+                const depth = i / 8;
+                const farY = h * 0.35;
+                const nearY = h * 0.65 - size * 0.5;
+                const y = farY + (nearY - farY) * depth + treeOffset * (1 - depth);
+                drawTree(w * 0.85 + i * 5, y, size);
+            }
+
+            // Light clearing in distance if progressing
+            if (progress > 0.5) {
+                const clearingAlpha = (progress - 0.5) * 0.4;
+                ctx.fillStyle = `rgba(255, 240, 200, ${clearingAlpha})`;
+                ctx.beginPath();
+                ctx.arc(w * 0.5, h * 0.2, 80, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Draw home scene
+        function drawHome() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Warm sunset sky
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, h * 0.7);
+            skyGradient.addColorStop(0, '#FFB366');
+            skyGradient.addColorStop(1, '#6B9DC7');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, w, h);
+
+            // Ground
+            ctx.fillStyle = '#5BA862';
+            ctx.fillRect(0, h * 0.7, w, h * 0.3);
+
+            // House in distance
+            const houseX = w * 0.5 - 80;
+            const houseY = h * 0.35;
+
+            // House body
+            ctx.fillStyle = '#8B6F47';
+            ctx.fillRect(houseX, houseY, 160, 120);
+
+            // Roof
+            ctx.fillStyle = '#6B4423';
+            ctx.beginPath();
+            ctx.moveTo(houseX - 20, houseY);
+            ctx.lineTo(houseX + 80, houseY - 60);
+            ctx.lineTo(houseX + 180, houseY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Window with warm glow
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(houseX + 60, houseY + 40, 40, 40);
+
+            // Window glow
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#FFD700';
+            ctx.fillRect(houseX + 60, houseY + 40, 40, 40);
+            ctx.shadowBlur = 0;
+
+            // Door
+            ctx.fillStyle = '#4A3621';
+            ctx.fillRect(houseX + 120, houseY + 60, 30, 60);
+
+            // Trees around house - positioned on ground at house's depth/perspective
+            // House bottom is at houseY + 120, trees should sit at similar level
+            const treeSize1 = 70;
+            const treeSize2 = 80;
+            drawTree(houseX - 60, houseY + 120 - treeSize1 * 0.5, treeSize1);
+            drawTree(houseX + 220, houseY + 120 - treeSize2 * 0.5, treeSize2);
+
+            // Path to house
+            ctx.fillStyle = '#A89968';
+            ctx.beginPath();
+            ctx.moveTo(w * 0.4, h);
+            ctx.lineTo(w * 0.47, houseY + 120);
+            ctx.lineTo(w * 0.53, houseY + 120);
+            ctx.lineTo(w * 0.6, h);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Helper function to draw a simple tree
+        function drawTree(x, y, size) {
+            // Trunk
+            ctx.fillStyle = '#5D4037';
+            ctx.fillRect(x - size * 0.1, y, size * 0.2, size * 0.5);
+
+            // Foliage
+            ctx.fillStyle = '#2E7D32';
+            ctx.beginPath();
+            ctx.moveTo(x, y - size * 0.3);
+            ctx.lineTo(x - size * 0.3, y + size * 0.1);
+            ctx.lineTo(x + size * 0.3, y + size * 0.1);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(x, y - size * 0.5);
+            ctx.lineTo(x - size * 0.25, y - size * 0.1);
+            ctx.lineTo(x + size * 0.25, y - size * 0.1);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Main render function
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            switch (scene) {
+                case 'fork':
+                    drawFork();
+                    break;
+                case 'highway_intro':
+                case 'highway_hold':
+                    drawHighway(animationProgress);
+                    break;
+                case 'highway_police':
+                    drawPolice();
+                    break;
+                case 'forest_intro':
+                case 'forest_hold':
+                    drawForest(animationProgress);
+                    break;
+                case 'forest_home':
+                    drawHome();
+                    break;
+            }
+        }
+
+        // Animation loop for holding
+        function updateAnimation() {
+            if (!isHolding) return;
+
+            const elapsed = Date.now() - holdStartTime;
+            animationProgress = Math.min(elapsed / 5000, 1); // 0 to 1 over 5 seconds
+
+            render();
+
+            if (elapsed >= 5000) {
+                // Reached 5 seconds
+                isHolding = false;
+
+                if (scene === 'highway_hold') {
+                    goToScene('highway_police');
+                    setTimeout(() => {
+                        goToScene('fork');
+                    }, 2000);
+                } else if (scene === 'forest_hold') {
+                    goToScene('forest_home');
+                    setTimeout(() => {
+                        goToScene('fork');
+                    }, 3000);
+                }
+            } else {
+                animationFrameId = requestAnimationFrame(updateAnimation);
+            }
+        }
+
+        // Mouse event handlers
+        canvas.addEventListener('click', (e) => {
+            if (scene === 'fork') {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+
+                if (x < canvas.width / 2) {
+                    // Left side - highway
+                    goToScene('highway_intro');
+                } else {
+                    // Right side - forest
+                    goToScene('forest_intro');
+                }
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (scene === 'highway_intro' || scene === 'highway_hold') {
+                isHolding = true;
+                holdStartTime = Date.now();
+                animationProgress = 0;
+                scene = 'highway_hold';
+                updateAnimation();
+            } else if (scene === 'forest_intro' || scene === 'forest_hold') {
+                isHolding = true;
+                holdStartTime = Date.now();
+                animationProgress = 0;
+                scene = 'forest_hold';
+                updateAnimation();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (isHolding) {
+                const elapsed = Date.now() - holdStartTime;
+                isHolding = false;
+
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                    animationFrameId = null;
+                }
+
+                if (elapsed < 5000) {
+                    // Released too early
+                    animationProgress = 0;
+
+                    if (scene === 'highway_hold') {
+                        scene = 'highway_intro';
+                        textDisplay.textContent = messages.highway_short;
+                        render();
+                        setTimeout(() => {
+                            updateText();
+                        }, 2000);
+                    } else if (scene === 'forest_hold') {
+                        scene = 'forest_intro';
+                        textDisplay.textContent = messages.forest_short;
+                        render();
+                        setTimeout(() => {
+                            updateText();
+                        }, 2000);
+                    }
+                }
+            }
+        });
+
+        // Also handle mouse leaving canvas
+        canvas.addEventListener('mouseleave', () => {
+            if (isHolding) {
+                canvas.dispatchEvent(new Event('mouseup'));
+            }
+        });
+
+        // Initialize
+        goToScene('fork');
+    </script>
+</body>
+</html>
