@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pixel Car Journey</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            background: #000;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #restartBtn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            background: #F83800;
+            color: #FFF;
+            border: 4px solid #000;
+            border-radius: 0;
+            cursor: pointer;
+            display: none;
+            box-shadow: 4px 4px 0 #000;
+        }
+
+        #restartBtn:active {
+            transform: translateX(-50%) translate(2px, 2px);
+            box-shadow: 2px 2px 0 #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <button id="restartBtn">RESTART</button>
+
+    <script>
+        // ============================================
+        // SETUP AND CONFIGURATION
+        // ============================================
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // Set canvas to fullscreen
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Pixel art color palette (Super Mario inspired)
+        const COLORS = {
+            skyBlue: '#5C94FC',
+            grassGreen: '#00D800',
+            darkGreen: '#008800',
+            treeGreen: '#00A800',
+            roadGray: '#888888',
+            roadDark: '#606060',
+            dashboardBrown: '#A84400',
+            dashboardDark: '#704000',
+            wheelBrown: '#D87020',
+            wheelDark: '#A84400',
+            wheelCenter: '#F8B800',
+            black: '#000000',
+            white: '#FFFFFF',
+            brickRed: '#F83800',
+            yellow: '#FCE060',
+            woodBrown: '#B86810',
+            woodDark: '#886010',
+            cityGray: '#C0C0C0',
+            cityBlue: '#4080F0'
+        };
+
+        // ============================================
+        // STATE MACHINE
+        // ============================================
+
+        let state = 'fork';  // fork, highway, forest, arrived, blocked
+        let narrative = '';
+
+        // ============================================
+        // GESTURE DETECTION
+        // ============================================
+
+        let touchStart = { x: 0, y: 0 };
+        let touchEnd = { x: 0, y: 0 };
+        const SWIPE_THRESHOLD = 40;  // Minimum distance for a swipe
+
+        // Get steering wheel bounds (bottom third of screen)
+        function getSteeringWheelBounds() {
+            return {
+                top: canvas.height * 0.66,
+                bottom: canvas.height,
+                left: 0,
+                right: canvas.width
+            };
+        }
+
+        function isInSteeringWheel(x, y) {
+            const bounds = getSteeringWheelBounds();
+            return y >= bounds.top && y <= bounds.bottom;
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            if (isInSteeringWheel(x, y)) {
+                touchStart = { x, y };
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            const touch = e.changedTouches ? e.changedTouches[0] : e;
+            const rect = canvas.getBoundingClientRect();
+            touchEnd = {
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            };
+
+            processSwipe();
+        }
+
+        function processSwipe() {
+            const dx = touchEnd.x - touchStart.x;
+            const dy = touchEnd.y - touchStart.y;
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+
+            // Check if swipe is long enough
+            if (absDx < SWIPE_THRESHOLD && absDy < SWIPE_THRESHOLD) {
+                return;
+            }
+
+            // Determine swipe direction
+            if (absDx > absDy) {
+                // Horizontal swipe
+                if (dx < 0) {
+                    handleSwipeLeft();
+                } else {
+                    handleSwipeRight();
+                }
+            } else {
+                // Vertical swipe
+                if (dy < 0) {
+                    handleSwipeUp();
+                }
+            }
+        }
+
+        function handleSwipeLeft() {
+            if (state === 'fork') {
+                state = 'highway';
+                narrative = 'You steer onto the wide highway.\nThe world blurs by faster.';
+                draw();
+                setTimeout(() => { narrative = ''; draw(); }, 2000);
+            }
+        }
+
+        function handleSwipeRight() {
+            if (state === 'fork') {
+                state = 'forest';
+                narrative = 'You turn into the forest road.\nThe ride feels calmer and slower.';
+                draw();
+                setTimeout(() => { narrative = ''; draw(); }, 2000);
+            }
+        }
+
+        function handleSwipeUp() {
+            if (state === 'highway') {
+                state = 'arrived';
+                narrative = 'You reach the end of your journey.';
+                restartBtn.style.display = 'block';
+                draw();
+            } else if (state === 'forest') {
+                state = 'blocked';
+                narrative = 'A fallen log blocks your way.';
+                restartBtn.style.display = 'block';
+                draw();
+            }
+        }
+
+        // Event listeners
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+        canvas.addEventListener('mousedown', handleTouchStart);
+        canvas.addEventListener('mouseup', handleTouchEnd);
+
+        restartBtn.addEventListener('click', () => {
+            state = 'fork';
+            narrative = '';
+            restartBtn.style.display = 'none';
+            draw();
+        });
+
+        // ============================================
+        // DRAWING UTILITIES
+        // ============================================
+
+        function drawRect(x, y, w, h, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
+        }
+
+        function drawPixelTree(x, y, size) {
+            // Tree trunk
+            const trunkWidth = size * 0.3;
+            const trunkHeight = size * 0.4;
+            drawRect(x - trunkWidth / 2, y, trunkWidth, trunkHeight, COLORS.woodBrown);
+
+            // Tree foliage (3 layers)
+            const leafSize = size * 0.8;
+            drawRect(x - leafSize / 2, y - leafSize * 0.2, leafSize, leafSize * 0.3, COLORS.treeGreen);
+            drawRect(x - leafSize * 0.7 / 2, y - leafSize * 0.4, leafSize * 0.7, leafSize * 0.3, COLORS.treeGreen);
+            drawRect(x - leafSize * 0.5 / 2, y - leafSize * 0.6, leafSize * 0.5, leafSize * 0.3, COLORS.treeGreen);
+        }
+
+        function drawPixelBuilding(x, y, w, h, color) {
+            drawRect(x, y, w, h, color);
+            drawRect(x, y, w, 6, COLORS.cityGray);
+
+            // Windows
+            const windowSize = 8;
+            const spacing = 12;
+            for (let wy = y + 15; wy < y + h - 10; wy += spacing) {
+                for (let wx = x + 8; wx < x + w - 8; wx += spacing) {
+                    drawRect(wx, wy, windowSize, windowSize, COLORS.yellow);
+                }
+            }
+        }
+
+        // ============================================
+        // SCENE DRAWING FUNCTIONS
+        // ============================================
+
+        function drawWindshield() {
+            const windshieldHeight = canvas.height * 0.55;
+
+            // Clear windshield area
+            drawRect(0, 0, canvas.width, windshieldHeight, COLORS.skyBlue);
+
+            // Draw appropriate scene based on state
+            switch (state) {
+                case 'fork':
+                    drawForkScene(windshieldHeight);
+                    break;
+                case 'highway':
+                    drawHighwayScene(windshieldHeight);
+                    break;
+                case 'forest':
+                    drawForestScene(windshieldHeight);
+                    break;
+                case 'arrived':
+                    drawArrivedScene(windshieldHeight);
+                    break;
+                case 'blocked':
+                    drawBlockedScene(windshieldHeight);
+                    break;
+            }
+
+            // Draw windshield frame
+            ctx.strokeStyle = COLORS.black;
+            ctx.lineWidth = 8;
+            ctx.strokeRect(0, 0, canvas.width, windshieldHeight);
+        }
+
+        function drawForkScene(height) {
+            const centerX = canvas.width / 2;
+            const bottomY = height - 20;
+
+            // Draw grass on sides
+            drawRect(0, height * 0.6, canvas.width, height * 0.4, COLORS.grassGreen);
+
+            // Draw main road (converging to center at top)
+            const roadTopWidth = 60;
+            const roadBottomWidth = canvas.width * 0.7;
+
+            ctx.fillStyle = COLORS.roadGray;
+            ctx.beginPath();
+            ctx.moveTo(centerX - roadTopWidth / 2, height * 0.3);
+            ctx.lineTo(centerX + roadTopWidth / 2, height * 0.3);
+            ctx.lineTo(centerX + roadBottomWidth / 2, bottomY);
+            ctx.lineTo(centerX - roadBottomWidth / 2, bottomY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw fork split
+            const forkY = height * 0.5;
+
+            // Left branch (highway)
+            ctx.fillStyle = COLORS.roadDark;
+            ctx.beginPath();
+            ctx.moveTo(centerX - 10, forkY);
+            ctx.lineTo(centerX - roadBottomWidth * 0.4, bottomY);
+            ctx.lineTo(centerX - roadBottomWidth * 0.5, bottomY);
+            ctx.lineTo(centerX - 15, forkY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Right branch (forest)
+            ctx.fillStyle = COLORS.roadDark;
+            ctx.beginPath();
+            ctx.moveTo(centerX + 10, forkY);
+            ctx.lineTo(centerX + roadBottomWidth * 0.4, bottomY);
+            ctx.lineTo(centerX + roadBottomWidth * 0.5, bottomY);
+            ctx.lineTo(centerX + 15, forkY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw center divider lines
+            ctx.fillStyle = COLORS.yellow;
+            for (let y = height * 0.3; y < forkY - 20; y += 20) {
+                const lineY = y;
+                const lineWidth = 4;
+                drawRect(centerX - lineWidth / 2, lineY, lineWidth, 12, COLORS.yellow);
+            }
+
+            // Draw trees on both sides
+            for (let i = 0; i < 4; i++) {
+                const leftX = 30 + i * 20;
+                const rightX = canvas.width - 30 - i * 20;
+                const treeY = height * 0.4 + i * 40;
+                const treeSize = 40 - i * 5;
+                drawPixelTree(leftX, treeY, treeSize);
+                drawPixelTree(rightX, treeY, treeSize);
+            }
+        }
+
+        function drawHighwayScene(height) {
+            const centerX = canvas.width / 2;
+
+            // Draw grass on sides
+            drawRect(0, height * 0.5, canvas.width, height * 0.5, COLORS.grassGreen);
+
+            // Draw wide highway with motion blur
+            const roadTopWidth = 80;
+            const roadBottomWidth = canvas.width;
+
+            ctx.fillStyle = COLORS.roadGray;
+            ctx.beginPath();
+            ctx.moveTo(centerX - roadTopWidth / 2, height * 0.2);
+            ctx.lineTo(centerX + roadTopWidth / 2, height * 0.2);
+            ctx.lineTo(canvas.width, height);
+            ctx.lineTo(0, height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw lane lines (stretched for speed effect)
+            ctx.fillStyle = COLORS.yellow;
+            const lanes = 3;
+            for (let lane = 1; lane <= lanes; lane++) {
+                const laneX = centerX - roadTopWidth / 2 + (roadTopWidth / (lanes + 1)) * lane;
+                for (let y = height * 0.25; y < height; y += 30) {
+                    const progress = (y - height * 0.25) / (height * 0.75);
+                    const x = laneX + (centerX - laneX) * progress * 0.2;
+                    const width = 3 + progress * 15;
+                    drawRect(x - width / 2, y, width, 20 + progress * 10, COLORS.yellow);
+                }
+            }
+
+            // Motion blur effect - speed lines
+            ctx.globalAlpha = 0.3;
+            for (let i = 0; i < 8; i++) {
+                const x = Math.random() * canvas.width;
+                const y = height * 0.3 + Math.random() * height * 0.5;
+                const length = 50 + Math.random() * 50;
+                drawRect(x, y, 3, length, COLORS.white);
+            }
+            ctx.globalAlpha = 1.0;
+
+            // Sparse trees far away
+            for (let i = 0; i < 2; i++) {
+                drawPixelTree(30 + i * 40, height * 0.4 + i * 60, 25 - i * 5);
+                drawPixelTree(canvas.width - 30 - i * 40, height * 0.4 + i * 60, 25 - i * 5);
+            }
+        }
+
+        function drawForestScene(height) {
+            const centerX = canvas.width / 2;
+
+            // Draw grass/dirt
+            drawRect(0, height * 0.5, canvas.width, height * 0.5, COLORS.darkGreen);
+
+            // Draw narrow forest road
+            const roadTopWidth = 50;
+            const roadBottomWidth = canvas.width * 0.6;
+
+            ctx.fillStyle = COLORS.roadDark;
+            ctx.beginPath();
+            ctx.moveTo(centerX - roadTopWidth / 2, height * 0.25);
+            ctx.lineTo(centerX + roadTopWidth / 2, height * 0.25);
+            ctx.lineTo(centerX + roadBottomWidth / 2, height);
+            ctx.lineTo(centerX - roadBottomWidth / 2, height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw center line
+            ctx.fillStyle = COLORS.yellow;
+            for (let y = height * 0.3; y < height; y += 25) {
+                const progress = (y - height * 0.3) / (height * 0.7);
+                const width = 2 + progress * 4;
+                drawRect(centerX - width / 2, y, width, 15, COLORS.yellow);
+            }
+
+            // Draw many trees close to road
+            const treePositions = [
+                { side: -1, offset: 0.25, size: 45 },
+                { side: -1, offset: 0.35, size: 55 },
+                { side: -1, offset: 0.18, size: 35 },
+                { side: 1, offset: 0.25, size: 45 },
+                { side: 1, offset: 0.35, size: 55 },
+                { side: 1, offset: 0.18, size: 35 },
+                { side: -1, offset: 0.5, size: 70 },
+                { side: 1, offset: 0.5, size: 70 },
+                { side: -1, offset: 0.65, size: 85 },
+                { side: 1, offset: 0.65, size: 85 }
+            ];
+
+            treePositions.forEach(tree => {
+                const x = centerX + tree.side * (roadBottomWidth * 0.5 + 20 + Math.random() * 40);
+                const y = height * tree.offset;
+                drawPixelTree(x, y, tree.size);
+            });
+        }
+
+        function drawArrivedScene(height) {
+            const centerX = canvas.width / 2;
+
+            // Draw sky
+            drawRect(0, 0, canvas.width, height * 0.6, COLORS.skyBlue);
+
+            // Draw ground
+            drawRect(0, height * 0.6, canvas.width, height * 0.4, COLORS.grassGreen);
+
+            // Draw road ending
+            const roadTopWidth = 60;
+            const roadBottomWidth = canvas.width * 0.6;
+
+            ctx.fillStyle = COLORS.roadGray;
+            ctx.beginPath();
+            ctx.moveTo(centerX - roadTopWidth / 2, height * 0.2);
+            ctx.lineTo(centerX + roadTopWidth / 2, height * 0.2);
+            ctx.lineTo(centerX + roadBottomWidth / 2, height);
+            ctx.lineTo(centerX - roadBottomWidth / 2, height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw pixel city skyline
+            const buildings = [
+                { x: centerX - 120, w: 50, h: 100, color: COLORS.cityBlue },
+                { x: centerX - 60, w: 60, h: 130, color: COLORS.cityGray },
+                { x: centerX + 10, w: 45, h: 90, color: COLORS.cityBlue },
+                { x: centerX + 65, w: 55, h: 110, color: COLORS.cityGray }
+            ];
+
+            buildings.forEach(b => {
+                drawPixelBuilding(b.x, height * 0.3, b.w, b.h, b.color);
+            });
+
+            // Draw "HOME" sign
+            ctx.fillStyle = COLORS.brickRed;
+            ctx.fillRect(centerX - 40, height * 0.45, 80, 35);
+            ctx.fillStyle = COLORS.white;
+            ctx.font = 'bold 20px "Courier New"';
+            ctx.textAlign = 'center';
+            ctx.fillText('HOME', centerX, height * 0.47 + 20);
+        }
+
+        function drawBlockedScene(height) {
+            const centerX = canvas.width / 2;
+
+            // Draw sky
+            drawRect(0, 0, canvas.width, height * 0.5, COLORS.skyBlue);
+
+            // Draw forest ground
+            drawRect(0, height * 0.5, canvas.width, height * 0.5, COLORS.darkGreen);
+
+            // Draw road
+            const roadTopWidth = 50;
+            const roadBottomWidth = canvas.width * 0.6;
+
+            ctx.fillStyle = COLORS.roadDark;
+            ctx.beginPath();
+            ctx.moveTo(centerX - roadTopWidth / 2, height * 0.2);
+            ctx.lineTo(centerX + roadTopWidth / 2, height * 0.2);
+            ctx.lineTo(centerX + roadBottomWidth / 2, height);
+            ctx.lineTo(centerX - roadBottomWidth / 2, height);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw dense forest
+            for (let i = 0; i < 6; i++) {
+                const leftX = 20 + i * 25;
+                const rightX = canvas.width - 20 - i * 25;
+                const y = height * 0.35 + i * 45;
+                const size = 40 + i * 10;
+                drawPixelTree(leftX, y, size);
+                drawPixelTree(rightX, y, size);
+            }
+
+            // Draw large blocking log
+            const logY = height * 0.55;
+            const logWidth = roadBottomWidth * 0.8;
+            const logHeight = 30;
+
+            // Log body
+            ctx.fillStyle = COLORS.woodBrown;
+            ctx.fillRect(centerX - logWidth / 2, logY, logWidth, logHeight);
+
+            // Log texture
+            ctx.fillStyle = COLORS.woodDark;
+            for (let i = 0; i < 8; i++) {
+                const x = centerX - logWidth / 2 + (logWidth / 8) * i;
+                ctx.fillRect(x, logY, 3, logHeight);
+            }
+
+            // Log ends
+            ctx.fillStyle = COLORS.woodDark;
+            ctx.beginPath();
+            ctx.ellipse(centerX - logWidth / 2, logY + logHeight / 2, 15, logHeight / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(centerX + logWidth / 2, logY + logHeight / 2, 15, logHeight / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawDashboard() {
+            const dashTop = canvas.height * 0.55;
+            const dashHeight = canvas.height * 0.11;
+
+            // Dashboard panel
+            drawRect(0, dashTop, canvas.width, dashHeight, COLORS.dashboardBrown);
+            drawRect(0, dashTop, canvas.width, 6, COLORS.dashboardDark);
+            drawRect(0, dashTop + dashHeight - 6, canvas.width, 6, COLORS.dashboardDark);
+
+            // Indicator lights
+            const lightSize = 12;
+            const lightY = dashTop + dashHeight / 2 - lightSize / 2;
+            const spacing = 25;
+            const startX = 20;
+
+            for (let i = 0; i < 3; i++) {
+                const color = i === 1 ? COLORS.brickRed : COLORS.darkGreen;
+                drawRect(startX + i * spacing, lightY, lightSize, lightSize, color);
+            }
+
+            // Dashboard text based on state
+            ctx.fillStyle = COLORS.yellow;
+            ctx.font = 'bold 14px "Courier New"';
+            ctx.textAlign = 'center';
+
+            let dashText = '';
+            switch (state) {
+                case 'fork':
+                    dashText = 'FORK AHEAD - SWIPE LEFT OR RIGHT';
+                    break;
+                case 'highway':
+                    dashText = 'HIGHWAY - SWIPE UP TO CONTINUE';
+                    break;
+                case 'forest':
+                    dashText = 'FOREST ROAD - SWIPE UP TO CONTINUE';
+                    break;
+                case 'arrived':
+                    dashText = 'ARRIVED SAFELY VIA HIGHWAY';
+                    break;
+                case 'blocked':
+                    dashText = 'ROAD BLOCKED BY LOG';
+                    break;
+            }
+
+            ctx.fillText(dashText, canvas.width / 2, dashTop + dashHeight / 2 + 5);
+        }
+
+        function drawSteeringWheel() {
+            const wheelCenterY = canvas.height * 0.8;
+            const wheelCenterX = canvas.width / 2;
+            const wheelRadius = Math.min(canvas.width, canvas.height) * 0.15;
+
+            // Steering wheel outer ring
+            ctx.fillStyle = COLORS.wheelBrown;
+            ctx.beginPath();
+            ctx.arc(wheelCenterX, wheelCenterY, wheelRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Inner hole
+            ctx.fillStyle = COLORS.black;
+            ctx.beginPath();
+            ctx.arc(wheelCenterX, wheelCenterY, wheelRadius * 0.65, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Spokes
+            ctx.strokeStyle = COLORS.wheelDark;
+            ctx.lineWidth = 8;
+            for (let i = 0; i < 4; i++) {
+                const angle = (Math.PI / 2) * i;
+                ctx.beginPath();
+                ctx.moveTo(wheelCenterX, wheelCenterY);
+                ctx.lineTo(
+                    wheelCenterX + Math.cos(angle) * wheelRadius * 0.6,
+                    wheelCenterY + Math.sin(angle) * wheelRadius * 0.6
+                );
+                ctx.stroke();
+            }
+
+            // Center hub
+            ctx.fillStyle = COLORS.wheelCenter;
+            ctx.beginPath();
+            ctx.arc(wheelCenterX, wheelCenterY, wheelRadius * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Center outline
+            ctx.strokeStyle = COLORS.black;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function drawNarrative() {
+            if (narrative) {
+                const boxHeight = 80;
+                const boxY = canvas.height * 0.35;
+
+                // Semi-transparent box
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, boxY, canvas.width, boxHeight);
+
+                // Text
+                ctx.fillStyle = COLORS.white;
+                ctx.font = 'bold 16px "Courier New"';
+                ctx.textAlign = 'center';
+
+                const lines = narrative.split('\n');
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, canvas.width / 2, boxY + 30 + i * 25);
+                });
+            }
+        }
+
+        // ============================================
+        // MAIN DRAW FUNCTION
+        // ============================================
+
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw all components
+            drawWindshield();
+            drawDashboard();
+            drawSteeringWheel();
+            drawNarrative();
+        }
+
+        // Initial draw
+        draw();
+    </script>
+</body>
+</html>
