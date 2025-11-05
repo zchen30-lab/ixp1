@@ -410,14 +410,19 @@
             ctx.closePath();
             ctx.fill();
 
-            // Trees on left side
+            // Trees on left side - positioned on grass (ground starts at h * 0.6)
             for (let i = 0; i < 5; i++) {
-                drawTree(w * 0.05 + i * w * 0.08, h * 0.5 - i * 30, 40 - i * 5);
+                const size = 40 - i * 5;
+                // Tree bottom should touch grass: y + size * 0.5 = h * 0.6
+                const y = h * 0.6 - size * 0.5;
+                drawTree(w * 0.05 + i * w * 0.08, y, size);
             }
 
-            // Trees on right side
+            // Trees on right side - positioned on grass
             for (let i = 0; i < 6; i++) {
-                drawTree(w * 0.92 - i * w * 0.08, h * 0.5 - i * 25, 40 - i * 5);
+                const size = 40 - i * 5;
+                const y = h * 0.6 - size * 0.5;
+                drawTree(w * 0.92 - i * w * 0.08, y, size);
             }
 
             // Road divider lines
@@ -550,21 +555,27 @@
             ctx.fill();
 
             // Parallax trees - moving with progress
+            // Ground starts at h * 0.65
             const treeOffset = progress * 20;
 
-            // Left side trees
+            // Left side trees - positioned from horizon to grass with perspective
             for (let i = 0; i < 8; i++) {
-                const depth = i / 8;
-                const y = h * 0.2 + i * 60 + treeOffset * (1 - depth);
                 const size = 60 + i * 10;
+                const depth = i / 8; // 0 = far away, 1 = close
+                // Far trees near horizon (h * 0.35), close trees on grass (h * 0.65 - size * 0.5)
+                const farY = h * 0.35;
+                const nearY = h * 0.65 - size * 0.5;
+                const y = farY + (nearY - farY) * depth + treeOffset * (1 - depth);
                 drawTree(w * 0.15 - i * 5, y, size);
             }
 
-            // Right side trees
+            // Right side trees - positioned from horizon to grass with perspective
             for (let i = 0; i < 8; i++) {
-                const depth = i / 8;
-                const y = h * 0.2 + i * 60 + treeOffset * (1 - depth);
                 const size = 60 + i * 10;
+                const depth = i / 8;
+                const farY = h * 0.35;
+                const nearY = h * 0.65 - size * 0.5;
+                const y = farY + (nearY - farY) * depth + treeOffset * (1 - depth);
                 drawTree(w * 0.85 + i * 5, y, size);
             }
 
@@ -625,9 +636,12 @@
             ctx.fillStyle = '#4A3621';
             ctx.fillRect(houseX + 120, houseY + 60, 30, 60);
 
-            // Trees around house
-            drawTree(houseX - 60, houseY + 40, 70);
-            drawTree(houseX + 220, houseY + 50, 80);
+            // Trees around house - positioned on ground at house's depth/perspective
+            // House bottom is at houseY + 120, trees should sit at similar level
+            const treeSize1 = 70;
+            const treeSize2 = 80;
+            drawTree(houseX - 60, houseY + 120 - treeSize1 * 0.5, treeSize1);
+            drawTree(houseX + 220, houseY + 120 - treeSize2 * 0.5, treeSize2);
 
             // Path to house
             ctx.fillStyle = '#A89968';
